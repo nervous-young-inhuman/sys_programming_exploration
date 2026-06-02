@@ -1,0 +1,23 @@
+# Ignore everything
+*
+
+# Keep directories so Git can recurse into them
+!*/
+
+# Keep C source files
+!*.c
+
+# Keep C header files
+!*.h
+
+# Keep Makefiles
+!Makefile
+
+# Keep documentation/legal files
+!README
+!README.*
+!LICENSE
+!LICENSE.*
+
+# Keep this file
+!.gitignore
