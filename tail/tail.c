@@ -105,3 +105,11 @@ int main(int argc, char *argv[])
   }
   return 0;
 }
+
+/**
+   TODO:
+      HANDLE FOR TRUNCATION AND ROTATION.
+      see the ./tail -f <name>
+      means 'watch' for changes in the <name> file,
+      so if a new file gets moved there with the same size then that content should be displayed.
+ **/
