@@ -105,8 +105,10 @@ void read_and_search_mmap(int search_file_fd, const char *pattern)
             break;
         }
 
-        write(STDOUT_FILENO, found, pattern_len);
-        write(STDOUT_FILENO, "\n", 1);
+        fwrite(found, 1, pattern_len, stdout);
+        fputc('\n', stdout);
+        /* write(STDOUT_FILENO, found, pattern_len); */
+        /* write(STDOUT_FILENO, "\n", 1); */
 
         size_t consumed = (found - cursor) + pattern_len;
         cursor += consumed;
@@ -150,8 +152,8 @@ void read_and_search(int search_file_fd, const char *pattern)
       chunk.cursor = new_cursor;
 
       if (found_idx) {
-        write(STDOUT_FILENO, found_idx, pattern_len);
-        write(STDOUT_FILENO, "\n", 1);
+        fwrite(found_idx, 1, pattern_len, stdout);
+        fputc('\n', stdout);
       }
     } else {
       memmove(buf, chunk.cursor, chunk.len);
@@ -179,7 +181,8 @@ int main(int argc, char *argv[])
   }
 
   const int fd = open(argv[2], O_RDONLY);
-  read_and_search(fd, argv[1]);
+  read_and_search_mmap(fd, argv[1]);
+  close(fd);
 
   return 0;
 }
