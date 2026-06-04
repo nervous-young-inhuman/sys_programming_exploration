@@ -13,6 +13,11 @@
 # Keep Makefiles
 !Makefile
 
+# Keep scripts / Alt implementations
+!*.py
+!*.sh
+
+
 # Keep documentation/legal files
 !README
 !README.*

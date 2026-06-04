@@ -15,7 +15,7 @@
 
    Success Criteria:
      1. Can Search through 1GB file, while consuming <100M of memory.
-     2. Verification of the output should be done using grep with fixed string search usage. However our program will only output in this format 'offset:<matching_string>' e.g: "30: hello"
+     2. Verification of the output should be done using grep with fixed string search usage. However our program will only output in this format 'lineno:offset:<matching_string>' e.g: "30: hello"
      3. Pattern length should be variable.
  **/
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
   }
 
   const int fd = open(argv[2], O_RDONLY);
-  read_and_search_mmap(fd, argv[1]);
+  read_and_search(fd, argv[1]);
   close(fd);
 
   return 0;
