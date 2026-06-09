@@ -29,8 +29,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <string.h>
 #include <unistd.h>
+#include "linestream.h"
 
 
 #define get_page_size() sysconf(_SC_PAGE_SIZE)
@@ -120,94 +120,6 @@ void read_and_search_mmap(int search_file_fd, const char *pattern)
 }
 
 
-enum OptCode {
-  OPT_ERROR = 0,
-  OPT_PRESENT = 1,
-};
-typedef struct {
-  char* cursor;
-  size_t size;
-} String;
-
-typedef struct {
-  const char message[256];
-  const unsigned short code;
-} ErrorT;
-
-typedef struct  {
-  union {
-    String str;
-    ErrorT err;
-  } o;
-  enum OptCode type;
-} OptString;
-
-OptString stream_line(int search_file_fd, const char *pattern)
-{
-  /* returns line if '\n' | EOF is found */
-  /* returns NULL in other scenarios */
-  /* crashes when sufficient memory cant be allotted */
-  
-  /* caller is responsible for freeing the return line.cursor */
-  size_t pattern_len = strnlen(pattern, 1*KiB);
-  if (pattern_len > (1*KiB - 1)) {
-    barf("pattern length should be less than 1024 characters");
-    exit(1);
-  }
-
-  struct stat st;
-  if (fstat(search_file_fd, &st) < 0) {
-    err_exit("fstat()");
-  }
-
-  if (st.st_size == 0) {
-    err_exit("st.size == 0");
-  }
-
-  size_t n_read_buffer_size = MIN(st.st_size, get_page_size());
-  char *linestr = malloc(sizeof(char) * n_read_buffer_size);
-  if (linestr == NULL) {
-    err_exit("malloc for read buffer");
-  }
-  off_t n_linestr = 1 * n_read_buffer_size;
-
-  off_t offset = 0;
-
-  while (1) {
-    ssize_t read_bytes = read(search_file_fd, linestr + offset, n_read_buffer_size);
-    if (read_bytes == 0) { /* EOF */
-      OptString ll = {
-        .o.str = (String){.cursor=linestr, .size=n_linestr},
-        .type = OPT_PRESENT,
-      };
-      return ll;
-    }
-    if (read_bytes < 0) { /* */
-      free(linestr);
-      err_exit("read() failed to read bytes");
-    }
-
-    char *found_at_byte = memchr(linestr + offset, '\n', read_bytes);
-    if (found_at_byte != NULL) {
-      size_t new_size = found_at_byte - linestr;
-    }
-
-    offset += read_bytes;
-    if (offset >= n_linestr) {
-      const size_t new_size = n_linestr + (16 * n_read_buffer_size);
-      char* new_line_str = realloc(linestr, new_size);
-      if (new_line_str == NULL) {
-        free(linestr);
-        err_exit("realloc");
-      }
-
-      memset(linestr + offset, '\0', new_size);
-      n_linestr = new_size;
-      linestr = new_line_str;
-    }
-  }
-}
-
 void read_and_search(int search_file_fd, const char *pattern)
 {
   size_t pattern_len = strnlen(pattern, 1*KiB);
@@ -242,6 +154,7 @@ void read_and_search(int search_file_fd, const char *pattern)
       chunk.cursor = new_cursor;
 
       if (found_idx) {
+        
         fwrite(found_idx, 1, pattern_len, stdout);
         fputc('\n', stdout);
       }
@@ -263,6 +176,46 @@ void read_and_search(int search_file_fd, const char *pattern)
   }
 }
 
+void stream_line_and_search(int fd, const char *pattern)
+{
+  size_t pattern_len = strnlen(pattern, 1*KiB);
+  if (pattern_len > (1*KiB - 1)) {
+    barf("pattern length should be less than 1024 characters");
+    exit(1);
+  }
+  
+  ResultLineStream rl = linestream__create(fd);
+  if (!rl.is_ok) {
+    err_exit("linestream__create()");
+  }
+  
+  LineStream *ls = rl.as.ls; 
+
+  off_t lineno = 0;
+  ResultString rs;
+  LSString line;
+  while ((rs = linestream__next(ls)).is_ok) {
+    line = rs.as.str;
+    if (line.size >= pattern_len) {
+      char *found_idx = pattern_search(pattern, pattern_len, line.cursor, line.size);
+      if (found_idx) {
+        // printf("%l %l", lineno + 1, (found_idx - line.cursor));
+        fwrite(found_idx, 1, pattern_len, stdout);
+        fputc('\n', stdout);
+      }
+    }
+    ++lineno;
+  }
+
+  if (rs.as.err.code != LS_ERR_EOF) {
+    LSError err = rs.as.err;
+    barf("SOMETHING WENT WRONG WHILE READING.. DEETS below\n");
+    fprintf(stderr, "code = %d, message = %s", err.code, err.message);
+  }
+  linestream__destroy(ls);
+}
+
+
 int main(int argc, char *argv[])
 {
   if (argc < 3) {
@@ -271,7 +224,7 @@ int main(int argc, char *argv[])
   }
 
   const int fd = open(argv[2], O_RDONLY);
-  read_and_search(fd, argv[1]);
+  stream_line_and_search(fd, argv[1]);
   close(fd);
 
   return 0;
