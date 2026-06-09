@@ -12,7 +12,7 @@ typedef struct ReadBuffer ReadBufferT;
 typedef ReadBufferT ReadBuffer;
 
 typedef struct {
-    const char *cursor;
+    char *cursor;
     size_t size;
 } String;
 

@@ -1,7 +1,6 @@
 #include "readbuffer.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,24 +11,15 @@ struct ReadBuffer {
     size_t offset;
 };
 
-static ReadBufferResult readbuffer_success(void)
-{
-    ReadBufferResult result = {0};
-    result.ok = true;
-    return result;
-}
+#define READBUFFER_SUCCESS \
+    ((ReadBufferResult){.ok = true})
 
-static ReadBufferResult readbuffer_failure(enum ReadBufferErrorCode error_code,
-                                           const char *error_message)
-{
-    ReadBufferResult result = {0};
-    result.error_code = error_code;
-    (void)snprintf(result.error_message,
-                   sizeof(result.error_message),
-                   "%s",
-                   error_message);
-    return result;
-}
+#define READBUFFER_FAILURE(code, message)                  \
+    ((ReadBufferResult){                                   \
+        .ok = false,                                       \
+        .error_code = (code),                              \
+        .error_message = message,                          \
+    })
 
 static int next_power_of_two(size_t value, size_t *result)
 {
@@ -90,36 +80,36 @@ ReadBufferResult readbuffer__assure(ReadBuffer *rb, size_t requested_space)
     char *new_data;
 
     if (rb == NULL) {
-        return readbuffer_failure(READBUFFER_ERROR_INVALID_ARGUMENT,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_INVALID_ARGUMENT,
                                   "read buffer is NULL");
     }
 
     trailing_space = rb->capacity - (rb->offset + rb->length);
     if (requested_space <= trailing_space) {
-        return readbuffer_success();
+        return READBUFFER_SUCCESS;
     }
 
     available_space = rb->capacity - rb->length;
     if (requested_space <= available_space) {
         memmove(rb->data, rb->data + rb->offset, rb->length);
         rb->offset = 0;
-        return readbuffer_success();
+        return READBUFFER_SUCCESS;
     }
 
     if (requested_space > SIZE_MAX - rb->length) {
-        return readbuffer_failure(READBUFFER_ERROR_OVERFLOW,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_OVERFLOW,
                                   "requested capacity overflows");
     }
     required_capacity = rb->length + requested_space;
 
     if (!next_power_of_two(required_capacity, &new_capacity)) {
-        return readbuffer_failure(READBUFFER_ERROR_OVERFLOW,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_OVERFLOW,
                                   "requested capacity overflows");
     }
 
     new_data = malloc(new_capacity);
     if (new_data == NULL) {
-        return readbuffer_failure(READBUFFER_ERROR_ALLOCATION_FAILED,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_ALLOCATION_FAILED,
                                   "allocation failed");
     }
 
@@ -131,28 +121,27 @@ ReadBufferResult readbuffer__assure(ReadBuffer *rb, size_t requested_space)
     rb->data = new_data;
     rb->capacity = new_capacity;
     rb->offset = 0;
-    return readbuffer_success();
+    return READBUFFER_SUCCESS;
 }
 
 String readbuffer__get_read_view(const ReadBuffer *rb)
 {
-    String view = {0};
+  if (rb)
+    return (String){
+      .cursor = rb->data == NULL ? NULL : (rb->data + rb->offset),
+      .size = rb->length
+    };
 
-    if (rb != NULL) {
-        view.cursor = rb->data == NULL ? NULL : rb->data + rb->offset;
-        view.size = rb->length;
-    }
-
-    return view;
+  return (String){0};
 }
 
 char *readbuffer__get_write_cursor(ReadBuffer *rb)
 {
-    if (rb == NULL || rb->data == NULL) {
-        return NULL;
-    }
+  if (rb == NULL || rb->data == NULL) {
+    return NULL;
+  }
 
-    return rb->data + rb->offset + rb->length;
+  return rb->data + rb->offset + rb->length;
 }
 
 size_t readbuffer__get_write_cursor_limit(const ReadBuffer *rb)
@@ -167,28 +156,28 @@ size_t readbuffer__get_write_cursor_limit(const ReadBuffer *rb)
 ReadBufferResult readbuffer__commit_write(ReadBuffer *rb, size_t bytes_written)
 {
     if (rb == NULL) {
-        return readbuffer_failure(READBUFFER_ERROR_INVALID_ARGUMENT,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_INVALID_ARGUMENT,
                                   "read buffer is NULL");
     }
 
     if (bytes_written > readbuffer__get_write_cursor_limit(rb)) {
-        return readbuffer_failure(READBUFFER_ERROR_OUT_OF_RANGE,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_OUT_OF_RANGE,
                                   "write exceeds assured space");
     }
 
     rb->length += bytes_written;
-    return readbuffer_success();
+    return READBUFFER_SUCCESS;
 }
 
 ReadBufferResult readbuffer__consume(ReadBuffer *rb, size_t bytes_consumed)
 {
     if (rb == NULL) {
-        return readbuffer_failure(READBUFFER_ERROR_INVALID_ARGUMENT,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_INVALID_ARGUMENT,
                                   "read buffer is NULL");
     }
 
     if (bytes_consumed > rb->length) {
-        return readbuffer_failure(READBUFFER_ERROR_OUT_OF_RANGE,
+        return READBUFFER_FAILURE(READBUFFER_ERROR_OUT_OF_RANGE,
                                   "consume exceeds readable bytes");
     }
 
@@ -198,7 +187,7 @@ ReadBufferResult readbuffer__consume(ReadBuffer *rb, size_t bytes_consumed)
         rb->offset = 0;
     }
 
-    return readbuffer_success();
+    return READBUFFER_SUCCESS;
 }
 
 size_t readbuffer__capacity(const ReadBuffer *rb)
