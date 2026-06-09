@@ -43,8 +43,8 @@ typedef struct {
  * ------------------------------------------------------------------------- */
 
 typedef enum {
-    R_ERR = 0,
-    R_OK  = 1,
+    RESULTSTATUS_ERR = 0,
+    RESULTSTATUS_OK  = 1,
 } ResultStatus;
 
 typedef struct {
@@ -71,22 +71,22 @@ typedef struct {
  * ------------------------------------------------------------------------- */
 
 #define LINESTREAM_OK(ls_ptr)                                               \
-    ((ResultLineStream){ .is_ok = R_OK, .as.ls = (ls_ptr) })
+    ((ResultLineStream){ .is_ok = RESULTSTATUS_OK, .as.ls = (ls_ptr) })
 
 #define LINESTREAM_FAILURE(err_code, err_message)                           \
     ((ResultLineStream){                                                     \
-        .is_ok  = R_ERR,                                                    \
+        .is_ok  = RESULTSTATUS_ERR,                                                    \
         .as.err = { .code = (unsigned short)(err_code),                     \
                     .message = err_message },                              \
     })
 
 
 #define RESULTSTRING_OK(cursor_ptr, size_val)                              \
-    ((ResultString){ .is_ok = R_OK, .as.str = { (cursor_ptr), (size_val) } })
+    ((ResultString){ .is_ok = RESULTSTATUS_OK, .as.str = { (cursor_ptr), (size_val) } })
 
 #define RESULTSTRING_FAILURE(err_code, err_message)                           \
     ((ResultString){                                                     \
-        .is_ok  = R_ERR,                                                    \
+        .is_ok  = RESULTSTATUS_ERR,                                                    \
         .as.err = { .code = (err_code),                     \
                     .message = err_message },                              \
     })  
@@ -105,8 +105,8 @@ struct LineStream {
  * linestream__create
  *
  * Allocates a LineStream backed by a ReadBuffer seeded with one OS page.
- * Returns R_OK + a heap-allocated LineStream on success.
- * Returns R_ERR + a descriptive LSError on failure; no resources are leaked.
+ * Returns RESULTSTATUS_OK + a heap-allocated LineStream on success.
+ * Returns RESULTSTATUS_ERR + a descriptive LSError on failure; no resources are leaked.
  */
 ResultLineStream linestream__create(int fd);
 
@@ -119,8 +119,8 @@ ResultLineStream linestream__create(int fd);
  *
  * The returned string does NOT include the '\n' character.
  *
- * Returns R_ERR with LS_ERR_EOF when no more data is available.
- * Returns R_ERR with LS_ERR_READ_FAILED / LS_ERR_ALLOC_FAILED on I/O or
+ * Returns RESULTSTATUS_ERR with LS_ERR_EOF when no more data is available.
+ * Returns RESULTSTATUS_ERR with LS_ERR_READ_FAILED / LS_ERR_ALLOC_FAILED on I/O or
  * memory errors.
  */
 ResultString linestream__next(LineStream *ls);
