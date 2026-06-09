@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <string.h>
 
-static void assert_ok(ErrorM result)
+static void assert_ok(ReadBufferResult result)
 {
-    assert(result.is_present == R_OK);
+    assert(result.ok);
 }
 
 static void test_initial_state(void)
@@ -106,7 +106,7 @@ static void test_growth_preserves_data(void)
 static void test_zero_capacity_and_bounds(void)
 {
     ReadBuffer *rb = readbuffer__init(0);
-    ErrorM result;
+    ReadBufferResult result;
 
     assert(rb != NULL);
     assert(readbuffer__get_write_cursor(rb) == NULL);
@@ -114,16 +114,16 @@ static void test_zero_capacity_and_bounds(void)
     assert(readbuffer__capacity(rb) == 1);
 
     result = readbuffer__commit_write(rb, 2);
-    assert(result.is_present == R_ERR);
-    assert(result.as.error.code == READBUFFER_ERROR_OUT_OF_RANGE);
+    assert(!result.ok);
+    assert(result.error_code == READBUFFER_ERROR_OUT_OF_RANGE);
 
     result = readbuffer__consume(rb, 1);
-    assert(result.is_present == R_ERR);
-    assert(result.as.error.code == READBUFFER_ERROR_OUT_OF_RANGE);
+    assert(!result.ok);
+    assert(result.error_code == READBUFFER_ERROR_OUT_OF_RANGE);
 
     result = readbuffer__assure(rb, SIZE_MAX);
-    assert(result.is_present == R_ERR);
-    assert(result.as.error.code == READBUFFER_ERROR_OVERFLOW);
+    assert(!result.ok);
+    assert(result.error_code == READBUFFER_ERROR_OVERFLOW);
 
     readbuffer__destroy(rb);
 }
