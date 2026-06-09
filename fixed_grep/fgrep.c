@@ -196,12 +196,18 @@ void stream_line_and_search(int fd, const char *pattern)
   LSString line;
   while ((rs = linestream__next(ls)).is_ok) {
     line = rs.as.str;
-    if (line.size >= pattern_len) {
-      char *found_idx = pattern_search(pattern, pattern_len, line.cursor, line.size);
+
+    size_t off = 0;
+    while (off < line.size) {
+      char *found_idx = pattern_search(pattern, pattern_len, line.cursor + off, line.size);
       if (found_idx) {
-        // printf("%l %l", lineno + 1, (found_idx - line.cursor));
+        printf("%ld:%ld:", lineno + 1, found_idx - line.cursor + 1);
         fwrite(found_idx, 1, pattern_len, stdout);
         fputc('\n', stdout);
+
+        off = (found_idx - line.cursor) + pattern_len;
+      } else {
+        off = line.size;
       }
     }
     ++lineno;

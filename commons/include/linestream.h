@@ -20,7 +20,7 @@ extern "C" {
  */
 typedef struct {
     const char  *cursor;
-    size_t       size;
+    size_t size;
 } LSString;
 
 /* Error codes returned through ResultString / ResultLineStream */
