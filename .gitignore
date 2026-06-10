@@ -26,3 +26,7 @@
 
 # Keep this file
 !.gitignore
+
+
+# keep compile commands
+!compile_commands.json

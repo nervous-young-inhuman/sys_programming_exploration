@@ -1,0 +1,23 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c99",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g3",
+      "-O0",
+      "-fsanitize=address",
+      "-fsanitize=undefined",
+      "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
+      "-c",
+      "-o",
+      "fgrep.o",
+      "fgrep.c"
+    ],
+    "directory": "/home/sham/af/dirty/sys_programming_exploration/fixed_grep",
+    "file": "/home/sham/af/dirty/sys_programming_exploration/fixed_grep/fgrep.c",
+    "output": "/home/sham/af/dirty/sys_programming_exploration/fixed_grep/fgrep.o"
+  }
+]
