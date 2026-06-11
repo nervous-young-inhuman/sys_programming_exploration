@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +38,9 @@ int get_tcp_server_socket(const char *host, const char *port) {
 		socketfd = socket(validaddr->ai_family,
 				  validaddr->ai_socktype | SOCK_CLOEXEC, // since we are threading, its better to close
 				  validaddr->ai_protocol);
-		if (socketfd > 0) {
+                if (socketfd > 0) {
+			int yes = 1; // this is required to be an INT!!
+			setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 			break;
                 }
         }
@@ -102,6 +105,45 @@ void fork_server_impl(int server_socketfd, int client_socketfd)
         if (pid == -1) {
 		perror("fork");
         }
+        close(client_socketfd);
+}
+
+
+typedef struct client_thread_args {
+	int client_socket_fd;
+} client_thread_args_t;
+
+static void *thread_worker(void *a) {
+	client_thread_args_t *args = (client_thread_args_t *)a;
+	int csockfd = args->client_socket_fd;
+	free(args);
+
+	handle_client_request(csockfd);
+	close(csockfd);
+	return NULL;
+}
+
+void pthread_impl(int __server_socketfd, int client_socketfd) {
+	(void)__server_socketfd;
+	client_thread_args_t *args = malloc(sizeof(*args));
+	if (!args) {
+		perror("malloc");
+		return;
+	}
+	args->client_socket_fd = client_socketfd;
+
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+	pthread_t tid;
+	if (pthread_create(&tid, &attr, thread_worker, args) != 0) {
+		perror("pthread_create");
+		free(args);
+		close(client_socketfd);
+	}
+
+	pthread_attr_destroy(&attr);
 }
 
 void server_loop(const unsigned short portno1) {
@@ -147,8 +189,8 @@ void server_loop(const unsigned short portno1) {
 				  sizeof(ipaddr));
 			printf("incoming connection from %s\n", ipaddr);
 		}
-	
-		fork_server_impl(socketfd, client_socketfd);
+
+		pthread_impl(socketfd, client_socketfd);
 	}
 }
 
