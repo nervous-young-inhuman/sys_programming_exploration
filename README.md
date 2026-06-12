@@ -3,11 +3,11 @@ Mostly programs written to understand linux sys calls better.
 The constraint is to use linux syscalls where possible and improvise there.
 The aim is to not write the best version ever,
 the aim is to explore and also I missed writing programs by hand.
-So all the programs in here hand coded.
 
-
+So all the programs in here hand coded except where noted. 
 Makefiles are AI assisted generations. 
 Since the purpose of this exploration is system programming not build system.
+Test scripts and can be AI generated. The purpose is to understand the design systems better in a way that makes sense for my brain.
 
 
 ## Rambling Notes
