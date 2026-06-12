@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -134,10 +135,13 @@ void pthread_impl(int __server_socketfd, int client_socketfd) {
 
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_attr_setstacksize(&attr, 64 * 1024);
 
-	pthread_t tid;
-	if (pthread_create(&tid, &attr, thread_worker, args) != 0) {
+        pthread_t tid;
+        int rc = 0;
+	if ((rc = pthread_create(&tid, &attr, thread_worker, args)) != 0) {
+          errno = rc;
 		perror("pthread_create");
 		free(args);
 		close(client_socketfd);
