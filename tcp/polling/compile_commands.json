@@ -13,11 +13,74 @@
       "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
       "-c",
       "-o",
-      "build/debug/poll.o",
-      "poll.c"
+      "build/debug/main.o",
+      "main.c"
     ],
     "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
-    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/poll.c",
-    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/poll.o"
+    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/main.c",
+    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c99",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g3",
+      "-O0",
+      "-fsanitize=address",
+      "-fsanitize=undefined",
+      "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
+      "-c",
+      "-o",
+      "build/debug/fds_state.o",
+      "fds_state.c"
+    ],
+    "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
+    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/fds_state.c",
+    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/fds_state.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c99",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g3",
+      "-O0",
+      "-fsanitize=address",
+      "-fsanitize=undefined",
+      "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
+      "-c",
+      "-o",
+      "build/debug/poll_server_impl.o",
+      "poll_server_impl.c"
+    ],
+    "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
+    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/poll_server_impl.c",
+    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/poll_server_impl.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c99",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-g3",
+      "-O0",
+      "-fsanitize=address",
+      "-fsanitize=undefined",
+      "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
+      "-c",
+      "-o",
+      "build/debug/utils.o",
+      "utils.c"
+    ],
+    "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
+    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/utils.c",
+    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/utils.o"
   }
 ]
