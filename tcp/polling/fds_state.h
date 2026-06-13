@@ -12,7 +12,7 @@ typedef struct fds_state {
 	struct pollfd *fds;
 } Fds;
 
-int watch_for_fd(Fds *state, int fd);
+int fd_state__watch(Fds *state, int fd);
 Fds* fds_state__init();
 void fds_state__destroy(Fds *fdstate);
 

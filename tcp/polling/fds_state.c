@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-int watch_for_fd(Fds *state, int fd) {
+int fd_state__watch(Fds *state, int fd) {
 	if (state->length >= state->capacity) {
 		return -1; // NOT IMPLEMENTING THE REALLOCATION LOGIC
 	}

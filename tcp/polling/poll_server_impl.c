@@ -25,7 +25,7 @@ int poll_server_impl(int server_fd) {
 	socklen_t incoming_addr_len = sizeof(incoming_addr);
   
 	Fds *fdstate = fds_state__init();
-	int rv = watch_for_fd(fdstate, server_fd);
+	int rv = fd_state__watch(fdstate, server_fd);
 	if (rv == -1) {
 		fds_state__destroy(fdstate);
 		return -1;
@@ -50,7 +50,7 @@ int poll_server_impl(int server_fd) {
 				int client_fd = accept(server_fd, (struct sockaddr *)&incoming_addr,
 						       &incoming_addr_len);
 
-				rv = watch_for_fd(fdstate, client_fd);
+				rv = fd_state__watch(fdstate, client_fd);
 				if (rv == -1) {
 					barf("failed to add client to watch list");
 				}
