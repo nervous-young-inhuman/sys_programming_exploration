@@ -1,95 +1,83 @@
-#include <assert.h>
-#include <stddef.h>
-#include <stdio.h>
+#include "message_queue.h"
+
 #include <stdlib.h>
 #include <string.h>
-#include "sds.h"
-#include <sys/types.h>
 
-#define MAX_MESSAGE_LENGTH 512
-#define MQ_EMPTY_SENTINEL -1
+MessageQueue *message_queue__init(size_t capacity) {
+    if (capacity == 0)
+        return NULL;
 
-#define ERR_MQ_FULL -40
-#define ERR_MESSAGE_TOO_LONG -41
+    MessageQueue *mq = malloc(sizeof(*mq));
+    if (!mq)
+        return NULL;
 
+    sds *messages = malloc(sizeof(sds) * capacity);
+    if (!messages) {
+        free(mq);
+        return NULL;
+    }
 
-typedef sds MessageString;
-#define message_string__len sdslen
-#define message_string__free sdsfree
+    memset(messages, 0, sizeof(sds) * capacity);
 
+    mq->messages = messages;
+    mq->capacity = capacity;
+    mq->start    = MQ_EMPTY_SENTINEL;
+    mq->end      = 0;
 
-typedef struct message_queue {
-  size_t capacity;
-  sds *messages;
-  ssize_t start;
-  ssize_t end;
-} MessageQueue;
-
-MessageQueue* message_queue__init(size_t capacity) {
-  assert(capacity > 0); // lazy programming, here to catch my call mistakes
-  MessageQueue *mq = malloc(sizeof(*mq));
-  if (!mq) {
-    assert(mq != NULL);
-  }
-  sds *messages = malloc(sizeof(sds *) * capacity);
-  if (!messages) {
-    free(mq);
-  }
-  assert(messages != NULL); // crash / exit the same way
-  mq->messages = messages;
-  mq->capacity = capacity;
-  mq->start = MQ_EMPTY_SENTINEL;
-  mq->end = 0;
-
-  memset(mq->messages, 0, sizeof(sds *) * capacity);
-  return mq;
+    return mq;
 }
 
+int message_queue__q(MessageQueue *mq, const char *msg, size_t msglen) {
+    if (!mq || !msg)
+        return ERR_NULL_POINTER;
 
-int message_queue__q(MessageQueue *mq, char *msg, size_t msglen) {
-  assert(msg != NULL);
-  if (mq->end == mq->start)
-    return ERR_MQ_FULL;
+    if (mq->end == mq->start)
+        return ERR_MQ_FULL;
 
-  if (msglen > MAX_MESSAGE_LENGTH)
-    return ERR_MESSAGE_TOO_LONG;
+    if (msglen > MAX_MESSAGE_LENGTH)
+        return ERR_MESSAGE_TOO_LONG;
 
-  sds message = sdsnewlen(msg, msglen);
-  mq->messages[mq->end] = message;
+    sds message = sdsnewlen(msg, msglen);
+    if (!message)
+        return ERR_ALLOC_FAIL;
 
-  mq->start = mq->start == MQ_EMPTY_SENTINEL ? 0 : mq->start;
-  mq->end = (mq->end + 1) % mq->capacity;
+    mq->messages[mq->end] = message;
+    mq->start = mq->start == MQ_EMPTY_SENTINEL ? 0 : mq->start;
+    mq->end = (mq->end + 1) % (ssize_t)mq->capacity;
+
+    return 0;
 }
 
 // the caller is supposed to free/modify this memory by calling message_string__free
 MessageString message_queue__dq(MessageQueue *mq) {
-  ssize_t current_idx = mq->start;
-  assert(current_idx != MQ_EMPTY_SENTINEL);
+    if (!mq || mq->start == MQ_EMPTY_SENTINEL)
+        return NULL;
 
-  sds message = mq->messages[mq->start];
-  sds rvm = sdsdup(message);
-  assert(rvm != NULL);
+    sds message = mq->messages[mq->start];
+    sds rvm = sdsdup(message);
+    if (!rvm)
+        return NULL;  // message stays in queue
 
-  sdsfree(message);
-  mq->start = (mq->start + 1) % mq->capacity;
-  if (mq->start == mq->end)
-    mq->start = MQ_EMPTY_SENTINEL;
-  
-  return rvm;
+    sdsfree(message);
+    mq->messages[mq->start] = NULL;
+    mq->start = (mq->start + 1) % (ssize_t)mq->capacity;
+
+    if (mq->start == mq->end)
+        mq->start = MQ_EMPTY_SENTINEL;
+
+    return rvm;
 }
 
-
 void message_queue__free(MessageQueue *mq) {
-  if (!mq || !mq->messages)
-    return;
+    if (!mq || !mq->messages)
+        return;
 
-  if (mq->start != MQ_EMPTY_SENTINEL)
-    for (ssize_t start = mq->start; start != mq->end;
-         start = (start + 1) % mq->capacity) {
-      sds message = mq->messages[start];
-      sdsfree(message);
-    }
+    if (mq->start != MQ_EMPTY_SENTINEL)
+        for (ssize_t start = mq->start; start != mq->end;
+             start = (start + 1) % (ssize_t)mq->capacity) {
+            sdsfree(mq->messages[start]);
+        }
 
-  free(mq->messages);
-  free(mq);
+    free(mq->messages);
+    free(mq);
 }
