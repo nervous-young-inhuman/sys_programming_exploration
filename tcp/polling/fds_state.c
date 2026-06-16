@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "fds_state.h"
 #include "utils.h"
 #include <stdlib.h>
@@ -9,9 +10,28 @@ int fd_state__watch(Fds *state, int fd) {
 		return -1; // NOT IMPLEMENTING THE REALLOCATION LOGIC
 	}
 
+        int ifd;
+        for (size_t i = 0; i < state->length; i++) {
+          ifd = state->fds[i].fd;
+          if (ifd == fd || ifd == ~fd) {
+            return 0;
+          }
+        }
+
 	state->fds[state->length++] =
-		(struct pollfd){.fd = fd, .events = POLLIN | POLLOUT, .revents = 0};
+		(struct pollfd){.fd = fd, .events = POLLIN | POLLRDHUP, .revents = 0};
 	return 0;
+}
+
+int fd_state__unwatch(Fds *state, int fd) {
+  for (size_t i = 0; i < state->length; i++)
+    if (state->fds[i].fd == fd) {
+      state->fds[i] = state->fds[state->length - 1];
+      state->length -= 1;
+      return 0;
+    }
+
+  return 0;
 }
 
 Fds* fds_state__init() {
