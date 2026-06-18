@@ -61,26 +61,5 @@
     "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
     "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/poll_server_impl.c",
     "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/poll_server_impl.o"
-  },
-  {
-    "arguments": [
-      "/usr/bin/cc",
-      "-std=c99",
-      "-Wall",
-      "-Wextra",
-      "-Wpedantic",
-      "-g3",
-      "-O0",
-      "-fsanitize=address",
-      "-fsanitize=undefined",
-      "-I/home/sham/af/dirty/sys_programming_exploration/commons/include",
-      "-c",
-      "-o",
-      "build/debug/utils.o",
-      "utils.c"
-    ],
-    "directory": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling",
-    "file": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/utils.c",
-    "output": "/home/sham/af/dirty/sys_programming_exploration/tcp/polling/build/debug/utils.o"
   }
 ]
