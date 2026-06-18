@@ -45,7 +45,7 @@ LDLIBS := \
 
 TARGET := $(BUILD_DIR)/poll_server
 
-SRCS := main.c fds_state.c poll_server_impl.c utils.c message_queue.c
+SRCS := main.c fds_state.c poll_server_impl.c utils.c message_q.c
 OBJS := $(addprefix $(BUILD_DIR)/,$(SRCS:.c=.o))
 
 all: $(TARGET)

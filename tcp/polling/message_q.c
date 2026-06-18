@@ -166,3 +166,34 @@ int message_queue__flush(MessageQueue *mq, int clientfd) {
     }
     return -1;
 }
+
+void message_queue__drop_slow_consumers(MessageQueue *mq) {
+    if (!mq || mq->start == MQ_EMPTY_SENTINEL)
+        return;
+
+    size_t length = get_length(mq);
+
+    if (length < (mq->capacity * 8) / 10)
+        return;
+
+    /* First 40% of the ring from start */
+    size_t drop_before_offset = (size_t)(mq->capacity * 0.4);
+
+    MQClient *client = SLIST_FIRST(&mq->clients);
+    while (client) {
+        MQClient *next = SLIST_NEXT(client, next);
+
+        size_t client_off =
+            (mq->capacity + client->roff - mq->start) % mq->capacity;
+
+        if (client_off < drop_before_offset) {
+            SLIST_REMOVE(&mq->clients,
+                         client,
+                         message_queue__client,
+                         next);
+            free(client);
+        }
+
+        client = next;
+    }
+}

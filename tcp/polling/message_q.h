@@ -49,5 +49,6 @@ void           message_queue__free(MessageQueue *mq);
 int message_queue__register_client(MessageQueue *mq, int clientfd);
 int message_queue__unregister_client(MessageQueue *mq, int clientfd);
 int message_queue__flush(MessageQueue *mq, int clientfd);
+void message_queue__drop_slow_consumers(MessageQueue *mq);
 
 #endif /* MESSAGE_QUEUE_H */
