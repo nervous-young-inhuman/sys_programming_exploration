@@ -12,21 +12,22 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "sds.h"
-#include "fds_state.h"
 #include "utils.h"
+#include "fds_state.h"
+#include "message_q.h"
+
+#define MAX_NUM_OF_CLIENTS (64000)
 
 
-// client_data_read_ready_handler
-// client_data_write_ready_handler
-struct client_message {
-  int client_id;
-  char *message;
+struct world_state {
+  Fds *fdstate;
+  MessageQueue *mq;
+  size_t *client_offsets;
+  
 };
 
 
-
-int message_queue__q(struct message_queue q, struct client_message message);
-int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message_queue q) {
+int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message_queue *q) {
   // possible events
   //   client has data ready to be read -> where should it read???
   //   client has data ready to be written -> what should be written here??
@@ -36,19 +37,36 @@ int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message
   int revent = event->revents;
 
   if (revent & POLLIN) {
-    sds msgbuf = sdsempty();
-    sdsMakeRoomFor(msgbuf, 512);
-    struct client_message msg = {
-      .client_id = clientfd,
-      .message = msgbuf,
-    };
-    message_queue__q(q, msg);
+    char readbuf[MAX_MESSAGE_LENGTH] = {'\0'};
+    ssize_t read_bytes = read(clientfd, readbuf, MAX_MESSAGE_LENGTH);
+    if (read_bytes == 0) { /* EOF  / FILE CLOSED */
+      fd_state__unwatch(fdstate, clientfd);
+      close(clientfd);
+      return 0;
+    }
+
+    if (read_bytes == -1) { // error reading from client
+      fd_state__unwatch(fdstate, clientfd);
+      close(clientfd);
+      return 0;
+    }
+
+    int mq_err = message_queue__q(q, readbuf, read_bytes);
+    if (mq_err == MQERR_NULL_POINTER) { // fundamentally wrong 
+      barf("message queue is null fundamentally wrong, better restart");
+      return -2;
+    }
+    if (mq_err == MQERR_FULL || mq_err == MQERR_ALLOC_FAIL) {
+      barf("EAGAIN: message queue is full, please try again.");
+      return -3;
+    }
+    if (mq_err == MQERR_MESSAGE_TOO_LONG) {
+      err_exit("Message too long that is enqueued, programming error!! PLEASE FIX");
+    }
+
+    return 0;
   }
-
-  /* if (revent & POLLOUT) { */
-  /*   ;; // this is almost always triggered */
-  /* } */
-
+  
   if (revent & (POLLHUP | POLLRDHUP)) {
     fd_state__unwatch(fdstate, clientfd);
     close(clientfd);
@@ -106,6 +124,7 @@ int handle_server_event(const struct pollfd *event, Fds *fdstate) {
  *  a client can send at max 512bytes of information
  **/
 int poll_server_impl(int server_fd) {
+  MessageQueue *mq = message_queue__init(MAX_NUM_OF_CLIENTS);
 	Fds *fdstate = fds_state__init();
 	int rv = fd_state__watch(fdstate, server_fd);
 	if (rv == -1) {
@@ -119,12 +138,14 @@ int poll_server_impl(int server_fd) {
 	};
 
 
+        int num_of_events = 0;
+        MessageString message = NULL;
 	while (1) {
-		rv = ppoll(fdstate->fds, fdstate->length, &timeout, NULL);
-		if (rv == 0) { /* poll timeout */
+		num_of_events = ppoll(fdstate->fds, fdstate->length, &timeout, NULL);
+		if (num_of_events == 0) { /* poll timeout */
 			barf("...");
 		}
-		if (rv == -1) { // something went wrong oops
+		if (num_of_events == -1) { // something went wrong oops
 			perror("ppoll");
 			break;
                 } else {
@@ -139,8 +160,9 @@ int poll_server_impl(int server_fd) {
                         }
 
                         for (nfds_t i = 1; i < fdstate->length; i++) {
-                          rv = handle_client_event(fdstate->fds + i, fdstate);
+                          rv = handle_client_event(fdstate->fds + i, fdstate, mq);
                         }
+
 		}
 	}
 
