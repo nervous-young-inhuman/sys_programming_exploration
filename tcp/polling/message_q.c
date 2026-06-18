@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 MessageQueue *message_queue__init(size_t capacity) {
     if (capacity == 0)
@@ -109,4 +110,59 @@ void message_queue__free(MessageQueue *mq) {
 
     free(mq->messages);
     free(mq);
+}
+
+int message_queue__register_client(MessageQueue *mq, int clientfd) {
+    if (!mq) return -1;
+    MQClient *client = malloc(sizeof(MQClient));
+    if (!client) return -1;
+    client->fd = clientfd;
+    client->roff = mq->start == MQ_EMPTY_SENTINEL ? 0 : mq->start;
+    SLIST_INSERT_HEAD(&mq->clients, client, next);
+    return 0;
+}
+
+int message_queue__unregister_client(MessageQueue *mq, int clientfd) {
+    if (!mq) return -1;
+    MQClient *client = NULL;
+    SLIST_FOREACH(client, &mq->clients, next) {
+        if (client->fd == clientfd) {
+            SLIST_REMOVE(&mq->clients, client, message_queue__client, next);
+            free(client);
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static int __flush_client_messages(MessageQueue *mq, MQClient *client) {
+    ssize_t i = client->roff;
+    while (i != mq->end) {
+        if (mq->messages[i]) {
+            ssize_t n = write(client->fd, mq->messages[i], sdslen(mq->messages[i]));
+            if (n < 0) {
+                client->roff = i;
+                return -1;
+            }
+        }
+        i = (i + 1) % (ssize_t)mq->capacity;
+    }
+    client->roff = mq->end;
+    return 0;
+}
+
+int message_queue__flush(MessageQueue *mq, int clientfd) {
+    if (!mq) return MQERR_NULL_POINTER;
+
+    if (get_length(mq) == 0) {
+        return 0;
+    }
+
+    MQClient *client = NULL;
+    SLIST_FOREACH(client, &mq->clients, next) {
+        if (client->fd == clientfd) {
+            return __flush_client_messages(mq, client);
+        }
+    }
+    return -1;
 }
