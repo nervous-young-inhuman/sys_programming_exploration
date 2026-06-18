@@ -24,7 +24,7 @@ MessageQueue *message_queue__init(size_t capacity) {
     mq->capacity = capacity;
     mq->start    = MQ_EMPTY_SENTINEL;
     mq->end      = 0;
-    mq->clients  = clients;
+    SLIST_INIT(&mq->clients);
     return mq;
 }
 

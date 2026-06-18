@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/queue.h>
 #include "sds.h"
 
 #define MAX_MESSAGE_LENGTH   512
@@ -23,14 +24,17 @@ typedef sds MessageString;
 typedef struct message_queue__client {
   int fd; // for now fd == unique id, its a horrible representation i know
   ssize_t roff; // read offset
+  SLIST_ENTRY(message_queue__client) next;
 } MQClient;
 
+SLIST_HEAD(mq_client_list, message_queue__client);
 
 typedef struct message_queue {
   size_t   capacity;
   sds     *messages;
   ssize_t  start;  /* MQ_EMPTY_SENTINEL when empty */
   ssize_t end;
+  struct mq_client_list clients;
 } MessageQueue;
 
 
