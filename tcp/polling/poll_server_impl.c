@@ -36,17 +36,20 @@ int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message
   int clientfd = event->fd;
   int revent = event->revents;
 
+
   if (revent & POLLIN) {
     char readbuf[MAX_MESSAGE_LENGTH] = {'\0'};
     ssize_t read_bytes = read(clientfd, readbuf, MAX_MESSAGE_LENGTH);
     if (read_bytes == 0) { /* EOF  / FILE CLOSED */
       fd_state__unwatch(fdstate, clientfd);
+      message_queue__unregister_client(q, clientfd);
       close(clientfd);
       return 0;
     }
 
     if (read_bytes == -1) { // error reading from client
       fd_state__unwatch(fdstate, clientfd);
+      message_queue__unregister_client(q, clientfd);
       close(clientfd);
       return 0;
     }
@@ -56,8 +59,17 @@ int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message
       barf("message queue is null fundamentally wrong, better restart");
       return -2;
     }
-    if (mq_err == MQERR_FULL || mq_err == MQERR_ALLOC_FAIL) {
-      barf("EAGAIN: message queue is full, please try again.");
+    if (mq_err == MQERR_FULL) {
+      message_queue__drop_slow_consumers(q);
+      mq_err = message_queue__q(q, readbuf, read_bytes);
+      if (mq_err == MQERR_FULL) {
+        barf("EAGAIN, push back on client to send data again");
+        return -55;
+      }
+    }
+    
+    if (mq_err == MQERR_ALLOC_FAIL) {
+      barf("Message Queue Allocation Failure.");
       return -3;
     }
     if (mq_err == MQERR_MESSAGE_TOO_LONG) {
@@ -69,6 +81,7 @@ int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message
   
   if (revent & (POLLHUP | POLLRDHUP)) {
     fd_state__unwatch(fdstate, clientfd);
+    message_queue__unregister_client(q, clientfd);
     close(clientfd);
     return 0;
   }
@@ -77,7 +90,7 @@ int handle_client_event(const struct pollfd *event, Fds *fdstate, struct message
 
 /* -1 server close */
 /* -2 failed to watch client */
-int handle_server_event(const struct pollfd *event, Fds *fdstate) {
+int handle_server_event(const struct pollfd *event, Fds *fdstate, MessageQueue *mq) {
 	struct sockaddr_storage incoming_addr;
 	socklen_t incoming_addr_len = sizeof(incoming_addr);
 	short revents = event->revents;
@@ -92,7 +105,10 @@ int handle_server_event(const struct pollfd *event, Fds *fdstate) {
 				       &incoming_addr_len);
                 int rv = fd_state__watch(fdstate, client_fd);
                 if (rv == -1)
-			return -2;
+                  return -2;
+                rv = message_queue__register_client(mq, client_fd);
+                if (rv == -1)
+                  return -3;
 	}
 
 	if (revents & POLLOUT) {
@@ -139,7 +155,6 @@ int poll_server_impl(int server_fd) {
 
 
         int num_of_events = 0;
-        MessageString message = NULL;
 	while (1) {
 		num_of_events = ppoll(fdstate->fds, fdstate->length, &timeout, NULL);
 		if (num_of_events == 0) { /* poll timeout */
@@ -149,7 +164,7 @@ int poll_server_impl(int server_fd) {
 			perror("ppoll");
 			break;
                 } else {
-			rv = handle_server_event(fdstate->fds, fdstate);
+                  rv = handle_server_event(fdstate->fds, fdstate, mq);
 			if (rv == -1) {
 				barf("adios amigos, closing server connection");
 				break;
@@ -159,8 +174,15 @@ int poll_server_impl(int server_fd) {
 				barf("failed to add client to watch list");
                         }
 
+                        if (rv == -3)
+                          barf("failed to add client to message queue watcher");
+
                         for (nfds_t i = 1; i < fdstate->length; i++) {
                           rv = handle_client_event(fdstate->fds + i, fdstate, mq);
+                        }
+
+                        for (nfds_t i = 1; i < fdstate->length; i++) {
+                            rv = message_queue__flush(mq, fdstate->fds[i].fd);
                         }
 
 		}
